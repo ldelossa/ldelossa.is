@@ -1,19 +1,21 @@
 <template>
   <div id="app">
-    <!-- <img alt="Vue logo" src="./assets/logo.png"> -->
-    <!-- <HelloWorld msg="Welcome to Your Vue.js App"/> -->
-    <TerminalWindow></TerminalWindow>
+    <TextWindow></TextWindow>
+    <StatusBar></StatusBar>
   </div>
 </template>
 
 <script>
 // import HelloWorld from './components/HelloWorld.vue'
-import TerminalWindow from './components/TerminalWindow.vue'
+//import TerminalWindow from './components/TerminalWindow.vue'
+import StatusBar from './components/StatusBar.vue'
+import TextWindow from './components/TextWindow.vue'
 
 export default {
   name: 'app',
   components: {
-      TerminalWindow
+      StatusBar,
+      TextWindow
   }
 }
 </script>
