@@ -1,0 +1,987 @@
+FUNCTION  <SNR>35_Tree()
+Called 1460 times
+Total time:   0.017442
+ Self time:   0.017442
+
+count  total (s)   self (s)
+ 1460              0.002389   let dir = a:path
+ 1460              0.008682   if dir =~# '/\.git$'
+ 1460              0.005298     return len(dir) ==# 5 ? '/' : dir[0:-6]
+                              elseif dir ==# ''
+                                return ''
+                              endif
+                              if !has_key(s:worktree_for_dir, dir)
+                                let s:worktree_for_dir[dir] = ''
+                                let config_file = dir . '/config'
+                                if filereadable(config_file)
+                                  let config = readfile(config_file,'',10)
+                                  call filter(config,'v:val =~# "^\\s*worktree *="')
+                                  if len(config) == 1
+                                    let worktree = s:Slash(FugitiveVimPath(matchstr(config[0], '= *\zs.*')))
+                                  endif
+                                elseif filereadable(dir . '/gitdir')
+                                  let worktree = s:Slash(fnamemodify(FugitiveVimPath(readfile(dir . '/gitdir')[0]), ':h'))
+                                  if worktree ==# '.'
+                                    unlet! worktree
+                                  endif
+                                endif
+                                if exists('worktree')
+                                  let s:worktree_for_dir[dir] = worktree
+                                  let s:dir_for_worktree[s:worktree_for_dir[dir]] = dir
+                                endif
+                              endif
+                              if s:worktree_for_dir[dir] =~# '^\.'
+                                return simplify(dir . '/' . s:worktree_for_dir[dir])
+                              else
+                                return s:worktree_for_dir[dir]
+                              endif
+
+FUNCTION  signature#utils#IsValidMarker()
+Called 208 times
+Total time:   0.000864
+ Self time:   0.000864
+
+count  total (s)   self (s)
+  208              0.000792   return (  (b:SignatureIncludeMarkers =~# a:marker) && (a:marker != ' ') )
+
+FUNCTION  <SNR>76_clear()
+Called 1 time
+Total time:   0.000049
+ Self time:   0.000049
+
+count  total (s)   self (s)
+    1              0.000006   for [status_dir, status] in items(s:statuses)
+                                let elapsed_time = reltimestr(reltime(status.created_at))
+                                " strip whitespace
+                                let elapsed_time = substitute(elapsed_time, '^\s*\(.\{-}\)\s*$', '\1', '')
+                            
+                                if str2nr(elapsed_time) > 10
+                                  call remove(s:statuses, status_dir)
+                                endif
+                              endfor
+                            
+    1              0.000002   if len(s:statuses) == 0
+    1              0.000010     let s:statuses = {}
+    1              0.000001   endif
+                            
+                              " force to update the statusline, otherwise the user needs to move the
+                              " cursor
+    1              0.000012   exe 'let &ro = &ro'
+
+FUNCTION  gitgutter#process_buffer()
+Called 4 times
+Total time:   0.003103
+ Self time:   0.000544
+
+count  total (s)   self (s)
+                              " NOTE a:bufnr is not necessarily the current buffer.
+                            
+    4   0.002239   0.000070   if gitgutter#utility#is_active(a:bufnr)
+                            
+    4              0.000027     if has('patch-7.4.1559')
+    4              0.000068       let l:Callback = function('gitgutter#process_buffer', [a:bufnr, a:force])
+    4              0.000006     else
+                                  let l:Callback = {'function': 'gitgutter#process_buffer', 'arguments': [a:bufnr, a:force]}
+                                endif
+    4   0.000295   0.000042     let how = s:setup_path(a:bufnr, l:Callback)
+    4              0.000019     if [how] == ['async']  " avoid string-to-number conversion if how is a number
+                                  return
+                                endif
+                            
+    4   0.000178   0.000041     if a:force || s:has_fresh_changes(a:bufnr)
+                            
+                                  let diff = ''
+                                  try
+                                    let diff = gitgutter#diff#run_diff(a:bufnr, 'index', 0)
+                                  catch /gitgutter not tracked/
+                                    call gitgutter#debug#log('Not tracked: '.gitgutter#utility#file(a:bufnr))
+                                  catch /gitgutter diff failed/
+                                    call gitgutter#debug#log('Diff failed: '.gitgutter#utility#file(a:bufnr))
+                                    call gitgutter#hunk#reset(a:bufnr)
+                                  endtry
+                            
+                                  if diff != 'async'
+                                    call gitgutter#diff#handler(a:bufnr, diff)
+                                  endif
+                            
+                                endif
+    4              0.000004   endif
+
+FUNCTION  <SNR>77_Tree()
+Called 1460 times
+Total time:   0.077485
+ Self time:   0.008123
+
+count  total (s)   self (s)
+ 1460   0.076934   0.007572   return a:0 ? FugitiveWorkTree(a:1) : FugitiveWorkTree()
+
+FUNCTION  FugitiveWorkTree()
+Called 1460 times
+Total time:   0.069361
+ Self time:   0.011708
+
+count  total (s)   self (s)
+ 1460   0.068776   0.011123   return s:Tree(FugitiveGitDir(a:0 ? a:1 : -1))
+
+FUNCTION  signature#sign#Refresh()
+Called 4 times
+Total time:   0.019280
+ Self time:   0.001599
+
+count  total (s)   self (s)
+                              " Description: Add signs for new marks/markers and remove signs for deleted marks/markers
+                              " Arguments:   Specify an argument to force a sign refresh
+                            
+    4   0.000985   0.000042   call s:InitializeVars(a:0 && a:1)
+                              " If Signature is not enabled, return
+    4              0.000012   if !b:sig_enabled | return | endif
+                            
+  212   0.005397   0.000295   for i in signature#mark#GetList('free', 'buf_curr')
+                                " ... remove it
+  208   0.008171   0.000808     call signature#sign#Remove(i, 0)
+  208              0.000159   endfor
+                            
+                              " Add signs for marks ...
+    4   0.004187   0.000032   for [l:mark, l:lnum, _] in signature#mark#GetList('used', 'buf_curr')
+                                " ... if mark is not present in our b:sig_marks list or if it is present but at the wrong line,
+                                " remove the old sign and add a new one
+                                if (  !has_key(b:sig_marks, l:lnum) || (b:sig_marks[l:lnum] !~# l:mark) || a:0 )
+                                  call signature#sign#Remove(l:mark, 0)
+                                  call signature#sign#Place (l:mark, l:lnum)
+                                endif
+                              endfor
+                            
+    4   0.000140   0.000024   call signature#sign#ToggleDummy()
+                            
+                              " We do not add signs for markers as SignRefresh is executed periodically and we don't have a way to determine if the
+                              " marker already has a sign or not
+
+FUNCTION  <SNR>37_not_git_dir()
+Called 4 times
+Total time:   0.000805
+ Self time:   0.000109
+
+count  total (s)   self (s)
+    4   0.000802   0.000105   return s:dir(a:bufnr) !~ '[/\\]\.git\($\|[/\\]\)'
+
+FUNCTION  signature#sign#Remove()
+Called 208 times
+Total time:   0.007364
+ Self time:   0.006500
+
+count  total (s)   self (s)
+                              " Description: Remove signs for marks/markers from the specified line number
+                              " Arguments:
+                              "   sign : The mark/marker whose sign is to be placed/removed/toggled
+                              "   lnum : Line number from which the sign is to be removed
+                              "          If sign is a marker and lnum is 0, the sign will be removed from all lines
+                              "          If sign is a mark   and lnum is 0, the lnum will be found and the sign will be removed from that line
+                            
+                              "echom "DEBUG: sign = " . a:sign . ",  lnum = " . a:lnum
+                            
+                              " If Signature is not enabled, return
+  208              0.000408   if !b:sig_enabled | return | endif
+                            
+                              " Remove sign for markers
+  208   0.001593   0.000729   if signature#utils#IsValidMarker(a:sign)
+                                let b:sig_markers[a:lnum] = substitute(b:sig_markers[a:lnum], "\\C" . escape( a:sign, '$^' ), "", "")
+                            
+                                " If there are no markers on the line, delete signs on that line
+                                if b:sig_markers[a:lnum] == ""
+                                  call remove(b:sig_markers, a:lnum)
+                                endif
+                                call s:RefreshLine(a:lnum)
+                            
+                              " Remove sign for marks
+                              else
+                                " For marks, if a:lnum == 0, find out the line where the mark was placed
+  208              0.000204     if a:lnum == 0
+  208              0.001022       let l:arr = keys(filter(copy(b:sig_marks), 'v:val =~# a:sign'))
+  208              0.000423       if empty(l:arr) | return | endif
+                                else
+                                  let l:arr = [a:lnum]
+                                endif
+                                if (v:version >= 800)
+                                  call assert_true(len(l:arr) == 1, "Multiple marks found where one was expected")
+                                elseif (len(l:arr) != 1)
+                                  echoerr "Multiple marks found where one was expected"
+                                endif
+                            
+                                for l:lnum in l:arr
+                                  " FIXME: Placed guard to avoid triggering issue #53
+                                  if has_key(b:sig_marks, l:lnum)
+                                    let b:sig_marks[l:lnum] = substitute(b:sig_marks[l:lnum], "\\C" . a:sign, "", "")
+                                    " If there are no marks on the line, delete signs on that line
+                                    if b:sig_marks[l:lnum] == ""
+                                      call remove(b:sig_marks, l:lnum)
+                                    endif
+                                  endif
+                                  call s:RefreshLine(l:lnum)
+                                endfor
+                              endif
+
+FUNCTION  <SNR>77_Dir()
+Called 1460 times
+Total time:   0.015240
+ Self time:   0.007790
+
+count  total (s)   self (s)
+ 1460   0.014570   0.007120   return a:0 ? FugitiveGitDir(a:1) : FugitiveGitDir()
+
+FUNCTION  signature#mark#GetList()
+Called 8 times
+Total time:   0.009257
+ Self time:   0.009257
+
+count  total (s)   self (s)
+                              " Arguments: mode    = 'used'     : Returns list of [ [used marks, line no., buf no.] ]
+                              "                      'free'     : Returns list of [ free marks ]
+                              "            scope   = 'buf_curr' : Limits scope to current buffer i.e used/free marks in current buffer
+                              "                      'buf_all'  : Set scope to all buffers i.e used/free marks from all buffers
+                              "            [type]  = 'global'   : Return only global marks
+                            
+    8              0.000019   let l:marks_list = []
+    8              0.000026   let l:line_tot = line('$')
+    8              0.000026   let l:buf_curr = bufnr('%')
+    8              0.000020   let l:type     = (a:0 ? a:1 : "")
+                            
+                              " Respect order specified in g:SignatureIncludeMarks
+  424              0.001094   for i in split(b:SignatureIncludeMarks, '\zs')
+  416              0.001432     if (i =~# "[A-Z]")
+  208              0.000955       let [ l:buf, l:line, l:col, l:off ] = getpos( "'" . i )
+  208              0.000763       let l:marks_list = add(l:marks_list, [i, l:line, l:buf])
+  208              0.000203     elseif (l:type !=? "global")
+  208              0.001057       let l:marks_list = add(l:marks_list, [i, line("'" .i), l:buf_curr])
+  208              0.000123     endif
+  416              0.000229   endfor
+                            
+    8              0.000016   if (a:mode ==? 'used')
+    4              0.000007     if (a:scope ==? 'buf_curr')
+    4              0.000431       call filter( l:marks_list, '(v:val[2] == l:buf_curr) && (v:val[1] > 0)' )
+    4              0.000003     else
+                                  call filter( l:marks_list, 'v:val[1] > 0' )
+                                endif
+    4              0.000002   else
+    4              0.000008     if (a:scope ==? 'buf_all')
+                                  call filter( l:marks_list, 'v:val[1] == 0' )
+                                else
+    4              0.000254       call filter( l:marks_list, '(v:val[1] == 0) || (v:val[2] != l:buf_curr)' )
+    4              0.000003     endif
+    4              0.000267     call map( l:marks_list, 'v:val[0]' )
+    4              0.000003   endif
+                            
+    8              0.000011   return l:marks_list
+
+FUNCTION  signature#sign#ToggleDummy()
+Called 4 times
+Total time:   0.000116
+ Self time:   0.000116
+
+count  total (s)   self (s)
+                              " Description: Places a dummy sign to prevent flickering of the gutter when the mark is moved or the line containing
+                              "              a mark/marker is deleted and then the delete is undone
+                              " Arguments: (optional) 0 : force remove
+                              "                       1 : force place
+                            
+    4              0.000039   let l:place  = a:0 ?  a:1 : (len(b:sig_marks) + len(b:sig_markers) == 1) && !b:sig_DummyExists
+    4              0.000018   let l:remove = a:0 ? !a:1 : (len(b:sig_marks) + len(b:sig_markers) == 0) &&  b:sig_DummyExists
+                            
+    4              0.000004   if (l:place)
+                                sign define Signature_Dummy
+                                execute 'sign place 666 line=1 name=Signature_Dummy buffer=' . bufnr('%')
+                                let b:sig_DummyExists = 1
+                              elseif (l:remove)
+                                silent! execute 'sign unplace 666 buffer=' . bufnr('%')
+                                let b:sig_DummyExists = 0
+                              endif
+
+FUNCTION  go#statusline#Clear()
+Called 1 time
+Total time:   0.000062
+ Self time:   0.000013
+
+count  total (s)   self (s)
+    1   0.000061   0.000012   call s:clear()
+
+FUNCTION  lightline#link()
+Called 365 times
+Total time:   0.013794
+ Self time:   0.013794
+
+count  total (s)   self (s)
+  365              0.005190   let mode = get(s:lightline._mode_, a:0 ? a:1 : mode(), 'normal')
+  365              0.001103   if s:mode == mode
+  359              0.000503     return ''
+                              endif
+    6              0.000015   let s:mode = mode
+    6              0.000026   if !has_key(s:highlight, mode)
+                                call lightline#highlight(mode)
+                              endif
+    6              0.000118   let types = map(s:uniq(sort(filter(values(s:lightline.component_type), 'v:val !=# "raw"'))), '[v:val, 1]')
+   18              0.000083   for [p, l] in [['Left', len(s:lightline.active.left)], ['Right', len(s:lightline.active.right)]]
+   66              0.000211     for [i, t] in map(range(0, l), '[v:val, 0]') + types
+   54              0.000061       if i != l
+   42              0.000891         exec printf('hi link Lightline%s_active_%s Lightline%s_%s_%s', p, i, p, mode, i)
+   42              0.000032       endif
+  300              0.000816       for [j, s] in map(range(0, l), '[v:val, 0]') + types
+  246              0.000420         if i + 1 == j || t || s && i != l
+  114              0.002055           exec printf('hi link Lightline%s_active_%s_%s Lightline%s_%s_%s_%s', p, i, j, p, mode, i, j)
+  114              0.000078         endif
+  246              0.000163       endfor
+   54              0.000036     endfor
+   12              0.000007   endfor
+    6              0.000089   exec printf('hi link LightlineMiddle_active LightlineMiddle_%s', mode)
+    6              0.000009   return ''
+
+FUNCTION  <SNR>35_Slash()
+Called 1460 times
+Total time:   0.008542
+ Self time:   0.008542
+
+count  total (s)   self (s)
+ 1460              0.003267   if exists('+shellslash')
+                                return tr(a:path, '\', '/')
+                              else
+ 1460              0.001499     return a:path
+                              endif
+
+FUNCTION  FugitiveVimPath()
+Called 1460 times
+Total time:   0.009966
+ Self time:   0.009966
+
+count  total (s)   self (s)
+ 1460              0.003895   if exists('+shellslash') && !&shellslash
+                                return tr(a:path, '/', '\')
+                              else
+ 1460              0.001592     return a:path
+                              endif
+
+FUNCTION  FugitiveGitDir()
+Called 2920 times
+Total time:   0.047661
+ Self time:   0.039119
+
+count  total (s)   self (s)
+ 2920              0.004691   if !a:0 || a:1 ==# -1
+ 1460              0.004472     return get(b:, 'git_dir', '')
+                              elseif type(a:1) == type(0)
+                                return getbufvar(a:1, 'git_dir')
+                              elseif type(a:1) == type('')
+ 1460   0.023809   0.015267     return substitute(s:Slash(a:1), '/$', '', '')
+                              else
+                                return ''
+                              endif
+
+FUNCTION  <SNR>77_Slash()
+Called 4380 times
+Total time:   0.025995
+ Self time:   0.025995
+
+count  total (s)   self (s)
+ 4380              0.010220   if exists('+shellslash')
+                                return tr(a:path, '\', '/')
+                              else
+ 4380              0.004051     return a:path
+                              endif
+
+FUNCTION  <SNR>64_Highlight_Matching_Pair()
+Called 272 times
+Total time:   0.259547
+ Self time:   0.259547
+
+count  total (s)   self (s)
+                              " Remove any previous match.
+  272              0.001017   if exists('w:paren_hl_on') && w:paren_hl_on
+  140              0.000530     silent! call matchdelete(3)
+  140              0.000323     let w:paren_hl_on = 0
+  140              0.000096   endif
+                            
+                              " Avoid that we remove the popup menu.
+                              " Return when there are no colors (looks like the cursor jumps).
+  272              0.001310   if pumvisible() || (&t_Co < 8 && !has("gui_running"))
+                                return
+                              endif
+                            
+                              " Get the character under the cursor and check if it's in 'matchpairs'.
+  272              0.000925   let c_lnum = line('.')
+  272              0.000666   let c_col = col('.')
+  272              0.000358   let before = 0
+                            
+  272              0.000821   let text = getline(c_lnum)
+  272              0.005469   let matches = matchlist(text, '\(.\)\=\%'.c_col.'c\(.\=\)')
+  272              0.000621   if empty(matches)
+                                let [c_before, c] = ['', '']
+                              else
+  272              0.001282     let [c_before, c] = matches[1:2]
+  272              0.000173   endif
+  272              0.004795   let plist = split(&matchpairs, '.\zs[:,]')
+  272              0.001060   let i = index(plist, c)
+  272              0.000306   if i < 0
+                                " not found, in Insert mode try character before the cursor
+  119              0.000473     if c_col > 1 && (mode() == 'i' || mode() == 'R')
+                                  let before = strlen(c_before)
+                                  let c = c_before
+                                  let i = index(plist, c)
+                                endif
+  119              0.000100     if i < 0
+                                  " not found, nothing to do
+  119              0.000116       return
+                                endif
+                              endif
+                            
+                              " Figure out the arguments for searchpairpos().
+  153              0.000188   if i % 2 == 0
+   24              0.000035     let s_flags = 'nW'
+   24              0.000052     let c2 = plist[i + 1]
+   24              0.000014   else
+  129              0.000189     let s_flags = 'nbW'
+  129              0.000174     let c2 = c
+  129              0.000265     let c = plist[i - 1]
+  129              0.000072   endif
+  153              0.000222   if c == '['
+                                let c = '\['
+                                let c2 = '\]'
+                              endif
+                            
+                              " Find the match.  When it was just before the cursor move it there for a
+                              " moment.
+  153              0.000159   if before > 0
+                                let has_getcurpos = exists("*getcurpos")
+                                if has_getcurpos
+                                  " getcurpos() is more efficient but doesn't exist before 7.4.313.
+                                  let save_cursor = getcurpos()
+                                else
+                                  let save_cursor = winsaveview()
+                                endif
+                                call cursor(c_lnum, c_col - before)
+                              endif
+                            
+  153              0.000871   if !has("syntax") || !exists("g:syntax_on")
+                                let s_skip = "0"
+                              else
+                                " Build an expression that detects whether the current cursor position is
+                                " in certain syntax types (string, comment, etc.), for use as
+                                " searchpairpos()'s skip argument.
+                                " We match "escape" for special items, such as lispEscapeSpecial.
+  153              0.000613     let s_skip = '!empty(filter(map(synstack(line("."), col(".")), ''synIDattr(v:val, "name")''), ' . '''v:val =~? "string\\|character\\|singlequote\\|escape\\|comment"''))'
+                                " If executing the expression determines that the cursor is currently in
+                                " one of the syntax types, then we want searchpairpos() to find the pair
+                                " within those syntax types (i.e., not skip).  Otherwise, the cursor is
+                                " outside of the syntax types and s_skip should keep its value so we skip
+                                " any matching pair inside the syntax types.
+                                " Catch if this throws E363: pattern uses more memory than 'maxmempattern'.
+  153              0.000234     try
+  153              0.120502       execute 'if ' . s_skip . ' | let s_skip = "0" | endif'
+  153              0.000239     catch /^Vim\%((\a\+)\)\=:E363/
+                                  " We won't find anything, so skip searching, should keep Vim responsive.
+                                  return
+                                endtry
+  153              0.000086   endif
+                            
+                              " Limit the search to lines visible in the window.
+  153              0.000762   let stoplinebottom = line('w$')
+  153              0.000392   let stoplinetop = line('w0')
+  153              0.000215   if i % 2 == 0
+   24              0.000055     let stopline = stoplinebottom
+   24              0.000015   else
+  129              0.000282     let stopline = stoplinetop
+  129              0.000068   endif
+                            
+                              " Limit the search time to 300 msec to avoid a hang on very long lines.
+                              " This fails when a timeout is not supported.
+  153              0.000553   if mode() == 'i' || mode() == 'R'
+                                let timeout = exists("b:matchparen_insert_timeout") ? b:matchparen_insert_timeout : g:matchparen_insert_timeout
+                              else
+  153              0.000699     let timeout = exists("b:matchparen_timeout") ? b:matchparen_timeout : g:matchparen_timeout
+  153              0.000092   endif
+  153              0.000146   try
+  153              0.084503     let [m_lnum, m_col] = searchpairpos(c, '', c2, s_flags, s_skip, stopline, timeout)
+  153              0.000243   catch /E118/
+                                " Can't use the timeout, restrict the stopline a bit more to avoid taking
+                                " a long time on closed folds and long lines.
+                                " The "viewable" variables give a range in which we can scroll while
+                                " keeping the cursor at the same position.
+                                " adjustedScrolloff accounts for very large numbers of scrolloff.
+                                let adjustedScrolloff = min([&scrolloff, (line('w$') - line('w0')) / 2])
+                                let bottom_viewable = min([line('$'), c_lnum + &lines - adjustedScrolloff - 2])
+                                let top_viewable = max([1, c_lnum-&lines+adjustedScrolloff + 2])
+                                " one of these stoplines will be adjusted below, but the current values are
+                                " minimal boundaries within the current window
+                                if i % 2 == 0
+                                  if has("byte_offset") && has("syntax_items") && &smc > 0
+                            	let stopbyte = min([line2byte("$"), line2byte(".") + col(".") + &smc * 2])
+                            	let stopline = min([bottom_viewable, byte2line(stopbyte)])
+                                  else
+                            	let stopline = min([bottom_viewable, c_lnum + 100])
+                                  endif
+                                  let stoplinebottom = stopline
+                                else
+                                  if has("byte_offset") && has("syntax_items") && &smc > 0
+                            	let stopbyte = max([1, line2byte(".") + col(".") - &smc * 2])
+                            	let stopline = max([top_viewable, byte2line(stopbyte)])
+                                  else
+                            	let stopline = max([top_viewable, c_lnum - 100])
+                                  endif
+                                  let stoplinetop = stopline
+                                endif
+                                let [m_lnum, m_col] = searchpairpos(c, '', c2, s_flags, s_skip, stopline)
+                              endtry
+                            
+  153              0.000178   if before > 0
+                                if has_getcurpos
+                                  call setpos('.', save_cursor)
+                                else
+                                  call winrestview(save_cursor)
+                                endif
+                              endif
+                            
+                              " If a match is found setup match highlighting.
+  153              0.000383   if m_lnum > 0 && m_lnum >= stoplinetop && m_lnum <= stoplinebottom 
+  140              0.000400     if exists('*matchaddpos')
+  140              0.004845       call matchaddpos('MatchParen', [[c_lnum, c_col - before], [m_lnum, m_col]], 10, 3)
+  140              0.000112     else
+                                  exe '3match MatchParen /\(\%' . c_lnum . 'l\%' . (c_col - before) . 'c\)\|\(\%' . m_lnum . 'l\%' . m_col . 'c\)/'
+                                endif
+  140              0.000256     let w:paren_hl_on = 1
+  140              0.000079   endif
+
+FUNCTION  signature#utils#Set()
+Called 32 times
+Total time:   0.000497
+ Self time:   0.000497
+
+count  total (s)   self (s)
+                              " Description: Assign value to var if var is unset or if an optional 3rd arg is provided to force
+                            
+   32              0.000131   if (!exists(a:var) || a:0 && a:1)
+                                if type(a:value)
+                                  execute 'let' a:var '=' string(a:value)
+                                else
+                                  execute 'let' a:var '=' a:value
+                                endif
+                              endif
+   32              0.000045   return a:var
+
+FUNCTION  gitgutter#utility#shellescape()
+Called 4 times
+Total time:   0.000203
+ Self time:   0.000203
+
+count  total (s)   self (s)
+    4              0.000188   if a:arg =~ '^[A-Za-z0-9_/.-]\+$'
+    4              0.000009     return a:arg
+                              elseif s:winshell()
+                                return '"' . substitute(substitute(a:arg, '"', '""', 'g'), '%', '"%"', 'g') . '"'
+                              else
+                                return shellescape(a:arg)
+                              endif
+
+FUNCTION  lightline#mode()
+Called 365 times
+Total time:   0.002230
+ Self time:   0.002230
+
+count  total (s)   self (s)
+  365              0.001949   return get(s:lightline.mode_map, mode(), '')
+
+FUNCTION  fugitive#Head()
+Called 730 times
+Total time:   0.573373
+ Self time:   0.081534
+
+count  total (s)   self (s)
+  730   0.010015   0.003372   let dir = a:0 > 1 ? a:2 : s:Dir()
+  730   0.275682   0.027324   if empty(dir) || !filereadable(fugitive#Find('.git/HEAD', dir))
+                                return ''
+                              endif
+  730   0.269040   0.032202   let head = readfile(fugitive#Find('.git/HEAD', dir))[0]
+  730              0.004804   if head =~# '^ref: '
+  730              0.011402     return substitute(head, '\C^ref: \%(refs/\%(heads/\|remotes/\|tags/\)\=\)\=', '', '')
+                              elseif head =~# '^\x\{40,\}$'
+                                let len = a:0 ? a:1 : 0
+                                return len < 0 ? head : len ? head[0:len-1] : ''
+                              else
+                                return ''
+                              endif
+
+FUNCTION  <SNR>82_InitializeVars()
+Called 4 times
+Total time:   0.000943
+ Self time:   0.000446
+
+count  total (s)   self (s)
+                              " Description: Initialize variables
+                              " Arguments:   Specify an argument to re-init
+                            
+    4              0.000020   if !exists('b:sig_marks')
+                                " b:sig_marks = { lnum => signs_str }
+                                let b:sig_marks = {}
+                              else
+                                " Lines can be removed using an external tool. Hence, we need to filter out marks placed on line numbers that are
+                                " now greater than the total number of lines in the file.
+    4              0.000017     let l:line_tot = line('$')
+    4              0.000022     call filter( b:sig_marks, 'v:key <= l:line_tot' )
+    4              0.000003   endif
+                            
+    4              0.000012   if !exists('b:sig_markers')
+                                " b:sig_markers = { lnum => marker }
+                                let b:sig_markers = {}
+                              else
+                                " Lines can be removed using an external tool. Hence, we need to filter out marks placed on line numbers that are
+                                " now greater than the total number of lines in the file.
+    4              0.000012     let l:line_tot = line('$')
+    4              0.000013     call filter( b:sig_markers, 'v:key <= l:line_tot' )
+    4              0.000003   endif
+                            
+    4   0.000119   0.000039   call signature#utils#Set('b:sig_DummyExists'         , 0                          , a:0 && a:1)
+    4   0.000097   0.000030   call signature#utils#Set('b:sig_enabled'             , g:SignatureEnabledAtStartup, a:0 && a:1)
+    4   0.000089   0.000029   call signature#utils#Set('b:SignatureIncludeMarks'   , g:SignatureIncludeMarks    , a:0 && a:1)
+    4   0.000122   0.000064   call signature#utils#Set('b:SignatureIncludeMarkers' , g:SignatureIncludeMarkers  , a:0 && a:1)
+    4   0.000106   0.000040   call signature#utils#Set('b:SignatureMarkOrder'      , g:SignatureMarkOrder       , a:0 && a:1)
+    4   0.000083   0.000026   call signature#utils#Set('b:SignaturePrioritizeMarks', g:SignaturePrioritizeMarks , a:0 && a:1)
+    4   0.000077   0.000023   call signature#utils#Set('b:SignatureDeferPlacement' , g:SignatureDeferPlacement  , a:0 && a:1)
+    4   0.000075   0.000022   call signature#utils#Set('b:SignatureWrapJumps'      , g:SignatureWrapJumps       , a:0 && a:1)
+
+FUNCTION  gitgutter#utility#repo_path()
+Called 4 times
+Total time:   0.000177
+ Self time:   0.000073
+
+count  total (s)   self (s)
+    4   0.000155   0.000051   let p = gitgutter#utility#getbufvar(a:bufnr, 'path')
+    4              0.000018   return a:shellesc ? gitgutter#utility#shellescape(p) : p
+
+FUNCTION  <SNR>81_has_fresh_changes()
+Called 4 times
+Total time:   0.000136
+ Self time:   0.000057
+
+count  total (s)   self (s)
+    4   0.000134   0.000054   return getbufvar(a:bufnr, 'changedtick') != gitgutter#utility#getbufvar(a:bufnr, 'tick')
+
+FUNCTION  go#statusline#Show()
+Called 730 times
+Total time:   0.008835
+ Self time:   0.008835
+
+count  total (s)   self (s)
+                              " lazy initialization of the cleaner
+  730              0.000898   if !s:timer_id
+                                let interval = go#config#StatuslineDuration()
+                                let s:timer_id = timer_start(interval, function('go#statusline#Clear'), {'repeat': -1})
+                              endif
+                            
+                              " nothing to show
+  730              0.001335   if empty(s:statuses)
+  730              0.000602     return ''
+                              endif
+                            
+                              let status_dir =  expand('%:p:h')
+                            
+                              if !has_key(s:statuses, status_dir)
+                                return ''
+                              endif
+                            
+                              let status = s:statuses[status_dir]
+                              if !has_key(status, 'desc') || !has_key(status, 'state') || !has_key(status, 'type')
+                                return ''
+                              endif
+                            
+                              let status_text = printf("[%s|%s]", status.type, status.state)
+                              if empty(status_text)
+                                return ''
+                              endif
+                            
+                              " only update highlight if status has changed.
+                              if status_text != s:last_status
+                                if status.state =~ "success" || status.state =~ "finished" || status.state =~ "pass" || status.state =~ 'initialized'
+                                  hi goStatusLineColor cterm=bold ctermbg=76 ctermfg=22 guibg=#5fd700 guifg=#005f00
+                                elseif status.state =~ "started" || status.state =~ "analysing" || status.state =~ "compiling" || status.state =~ 'initializing'
+                                  hi goStatusLineColor cterm=bold ctermbg=208 ctermfg=88 guibg=#ff8700 guifg=#870000
+                                elseif status.state =~ "failed"
+                                  hi goStatusLineColor cterm=bold ctermbg=196 ctermfg=52 guibg=#ff0000 guifg=#5f0000
+                                endif
+                              endif
+                            
+                              let s:last_status = status_text
+                              return status_text
+
+FUNCTION  <SNR>37_exists_file()
+Called 4 times
+Total time:   0.000952
+ Self time:   0.000139
+
+count  total (s)   self (s)
+    4   0.000948   0.000136   return filereadable(s:abs_path(a:bufnr, 0))
+
+FUNCTION  <SNR>81_setup_path()
+Called 4 times
+Total time:   0.000253
+ Self time:   0.000076
+
+count  total (s)   self (s)
+    4   0.000214   0.000036   let p = gitgutter#utility#repo_path(a:bufnr, 0)
+                            
+    4              0.000025   if type(p) == s:t_string && !empty(p)  " if path is known
+    4              0.000005     return
+                              endif
+                            
+                              return gitgutter#utility#set_repo_path(a:bufnr, a:continuation)
+
+FUNCTION  fugitive#Find()
+Called 1460 times
+Total time:   0.485195
+ Self time:   0.333934
+
+count  total (s)   self (s)
+ 1460              0.004547   if type(a:object) == type(0)
+                                let name = bufname(a:object)
+                                return FugitiveVimPath(name =~# '^$\|^/\|^\a\+:' ? name : getcwd() . '/' . name)
+                              elseif a:object =~# '^[~$]'
+                                let prefix = matchstr(a:object, '^[~$]\i*')
+                                let owner = expand(prefix)
+                                return FugitiveVimPath((len(owner) ? owner : prefix) . strpart(a:object, len(prefix)))
+                              elseif s:Slash(a:object) =~# '^$\|^/\|^\%(\a\a\+:\).*\%(//\|::\)' . (has('win32') ? '\|^\a:/' : '')
+                                return FugitiveVimPath(a:object)
+                              elseif s:Slash(a:object) =~# '^\.\.\=\%(/\|$\)'
+                                return FugitiveVimPath(simplify(getcwd() . '/' . a:object))
+                              endif
+ 1460              0.004638   let dir = a:0 ? a:1 : s:Dir()
+ 1460              0.002761   if empty(dir)
+                                let file = matchstr(a:object, '^\%(:\d:\|[^:]*:\)\zs.*', '', '')
+                                let dir = FugitiveExtractGitDir(file)
+                                if empty(dir)
+                                  return fnamemodify(FugitiveVimPath(len(file) ? file : a:object), ':p')
+                                endif
+                              endif
+ 1460   0.013933   0.005927   let rev = s:Slash(a:object)
+ 1460   0.083555   0.006070   let tree = s:Tree(dir)
+ 1460              0.004396   let base = len(tree) ? tree : 'fugitive://' . dir . '//0'
+ 1460              0.002037   if rev ==# '.git'
+                                let f = len(tree) ? tree . '/.git' : dir
+                              elseif rev =~# '^\.git/'
+ 1460              0.009673     let f = substitute(rev, '^\.git', '', '')
+ 1460   0.044189   0.006375     let cdir = fugitive#CommonDir(dir)
+ 1460              0.007242     if f =~# '^/\.\./\.\.\%(/\|$\)'
+                                  let f = simplify(len(tree) ? tree . f[3:-1] : dir . f)
+                                elseif f =~# '^/\.\.\%(/\|$\)'
+                                  let f = base . f[3:-1]
+                                elseif cdir !=# dir && ( f =~# '^/\%(config\|hooks\|info\|logs/refs\|objects\|refs\|worktrees\)\%(/\|$\)' || f !~# '^/\%(index$\|index\.lock$\|\w*MSG$\|\w*HEAD$\|logs/\w*HEAD$\|logs$\|rebase-\w\+\)\%(/\|$\)' && getftime(FugitiveVimPath(dir . f)) < 0 && getftime(FugitiveVimPath(cdir . f)) >= 0)
+                                  let f = simplify(cdir . f)
+                                else
+ 1460              0.005321       let f = simplify(dir . f)
+ 1460              0.000891     endif
+ 1460              0.001259   elseif rev ==# ':/'
+                                let f = base
+                              elseif rev =~# '^\.\%(/\|$\)'
+                                let f = base . rev[1:-1]
+                              elseif rev =~# '^::\%(/\|\a\+\:\)'
+                                let f = rev[2:-1]
+                              elseif rev =~# '^::\.\.\=\%(/\|$\)'
+                                let f = simplify(getcwd() . '/' . rev[2:-1])
+                              elseif rev =~# '^::'
+                                let f = base . '/' . rev[2:-1]
+                              elseif rev =~# '^:\%([0-3]:\)\=\.\.\=\%(/\|$\)\|^:[0-3]:\%(/\|\a\+:\)'
+                                let f = rev =~# '^:\%([0-3]:\)\=\.' ? simplify(getcwd() . '/' . matchstr(rev, '\..*')) : rev[3:-1]
+                                if s:cpath(base . '/', (f . '/')[0 : len(base)])
+                                  let f = 'fugitive://' . dir . '//' . +matchstr(rev, '^:\zs\d\ze:') . '/' . strpart(f, len(base) + 1)
+                                else
+                                  let altdir = FugitiveExtractGitDir(f)
+                                  if len(altdir) && !s:cpath(dir, altdir)
+                                    return fugitive#Find(a:object, altdir)
+                                  endif
+                                endif
+                              elseif rev =~# '^:[0-3]:'
+                                let f = 'fugitive://' . dir . '//' . rev[1] . '/' . rev[3:-1]
+                              elseif rev ==# ':'
+                                if $GIT_INDEX_FILE =~# '/[^/]*index[^/]*\.lock$' && s:cpath(fnamemodify($GIT_INDEX_FILE,':p')[0:strlen(dir)]) ==# s:cpath(dir . '/') && filereadable($GIT_INDEX_FILE)
+                                  let f = fnamemodify($GIT_INDEX_FILE, ':p')
+                                else
+                                  let f = fugitive#Find('.git/index', dir)
+                                endif
+                              elseif rev =~# '^:(\%(top\|top,literal\|literal,top\|literal\))'
+                                let f = matchstr(rev, ')\zs.*')
+                                if f=~# '^\.\.\=\%(/\|$\)'
+                                  let f = simplify(getcwd() . '/' . f)
+                                elseif f !~# '^/\|^\%(\a\a\+:\).*\%(//\|::\)' . (has('win32') ? '\|^\a:/' : '')
+                                  let f = base . '/' . f
+                                endif
+                              elseif rev =~# '^:/\@!'
+                                let f = 'fugitive://' . dir . '//0/' . rev[1:-1]
+                              else
+                                if !exists('f')
+                                  let commit = substitute(matchstr(rev, '^[^:.-][^:]*\|^:.*'), '^@\%($\|[~^]\|@{\)\@=', 'HEAD', '')
+                                  let file = substitute(matchstr(rev, '^[^:.-][^:]*\zs:.*'), '^:', '/', '')
+                                  if file =~# '^/\.\.\=\%(/\|$\)\|^//\|^/\a\+:'
+                                    let file = file =~# '^/\.' ? simplify(getcwd() . file) : file[1:-1]
+                                    if s:cpath(base . '/', (file . '/')[0 : len(base)])
+                                      let file = '/' . strpart(file, len(base) + 1)
+                                    else
+                                      let altdir = FugitiveExtractGitDir(file)
+                                      if len(altdir) && !s:cpath(dir, altdir)
+                                        return fugitive#Find(a:object, altdir)
+                                      endif
+                                      return file
+                                    endif
+                                  endif
+                                  let commits = split(commit, '\.\.\.-\@!', 1)
+                                  if len(commits) == 2
+                                    call map(commits, 'empty(v:val) || v:val ==# "@" ? "HEAD" : v:val')
+                                    let commit = matchstr(s:ChompDefault('', [dir, 'merge-base'] + commits + ['--']), '\<[0-9a-f]\{40,\}\>')
+                                  endif
+                                  if commit !~# '^[0-9a-f]\{40,\}$'
+                                    let commit = matchstr(s:ChompDefault('', [dir, 'rev-parse', '--verify', commit, '--']), '\<[0-9a-f]\{40,\}\>')
+                                  endif
+                                  if len(commit)
+                                    let f = 'fugitive://' . dir . '//' . commit . file
+                                  else
+                                    let f = base . '/' . substitute(rev, '^:/:\=\|^[^:]\+:', '', '')
+                                  endif
+                                endif
+                              endif
+ 1460   0.015762   0.005796   return FugitiveVimPath(f)
+
+FUNCTION  lightline#update_once()
+Called 272 times
+Total time:   0.003410
+ Self time:   0.003410
+
+count  total (s)   self (s)
+  272              0.002010   if !exists('w:lightline') || w:lightline
+                                call lightline#update()
+                              endif
+
+FUNCTION  fugitive#head()
+Called 730 times
+Total time:   0.592251
+ Self time:   0.010281
+
+count  total (s)   self (s)
+  730   0.012876   0.004279   if empty(s:Dir())
+                                return ''
+                              endif
+                            
+  730   0.577179   0.003806   return fugitive#Head(a:0 ? a:1 : 0)
+
+FUNCTION  gitgutter#utility#is_active()
+Called 4 times
+Total time:   0.002170
+ Self time:   0.000205
+
+count  total (s)   self (s)
+    4   0.002165   0.000200   return g:gitgutter_enabled && gitgutter#utility#getbufvar(a:bufnr, 'enabled', 1) && !pumvisible() && s:is_file_buffer(a:bufnr) && s:exists_file(a:bufnr) && s:not_git_dir(a:bufnr)
+
+FUNCTION  fugitive#CommonDir()
+Called 1460 times
+Total time:   0.037815
+ Self time:   0.037815
+
+count  total (s)   self (s)
+ 1460              0.002814   if empty(a:dir)
+                                return ''
+                              endif
+ 1460              0.004109   if !has_key(s:commondirs, a:dir)
+                                if getfsize(a:dir . '/HEAD') < 10
+                                  let s:commondirs[a:dir] = ''
+                                elseif filereadable(a:dir . '/commondir')
+                                  let cdir = get(readfile(a:dir . '/commondir', 1), 0, '')
+                                  if cdir =~# '^/\|^\a:/'
+                                    let s:commondirs[a:dir] = s:Slash(FugitiveVimPath(cdir))
+                                  else
+                                    let s:commondirs[a:dir] = simplify(a:dir . '/' . cdir)
+                                  endif
+                                else
+                                  let s:commondirs[a:dir] = a:dir
+                                endif
+                              endif
+ 1460              0.002942   return s:commondirs[a:dir]
+
+FUNCTION  <SNR>37_dir()
+Called 4 times
+Total time:   0.000697
+ Self time:   0.000089
+
+count  total (s)   self (s)
+    4   0.000694   0.000086   return gitgutter#utility#shellescape(fnamemodify(s:abs_path(a:bufnr, 0), ':h'))
+
+FUNCTION  gitgutter#utility#getbufvar()
+Called 12 times
+Total time:   0.000348
+ Self time:   0.000348
+
+count  total (s)   self (s)
+   12              0.000091   let bvars = getbufvar(a:buffer, '')
+   12              0.000043   if !empty(bvars)
+   12              0.000071     let dict = get(bvars, 'gitgutter', {})
+   12              0.000051     if has_key(dict, a:varname)
+    8              0.000024       return dict[a:varname]
+                                endif
+    4              0.000004   endif
+    4              0.000006   if a:0
+    4              0.000007     return a:1
+                              endif
+
+FUNCTION  <SNR>37_is_file_buffer()
+Called 4 times
+Total time:   0.000044
+ Self time:   0.000044
+
+count  total (s)   self (s)
+    4              0.000041   return empty(getbufvar(a:bufnr, '&buftype'))
+
+FUNCTION  <SNR>37_abs_path()
+Called 8 times
+Total time:   0.001218
+ Self time:   0.001218
+
+count  total (s)   self (s)
+    8              0.001154   let p = resolve(expand('#'.a:bufnr.':p'))
+    8              0.000054   return a:shellesc ? gitgutter#utility#shellescape(p) : p
+
+FUNCTIONS SORTED ON TOTAL TIME
+count  total (s)   self (s)  function
+  730   0.592251   0.010281  fugitive#head()
+  730   0.573373   0.081534  fugitive#Head()
+ 1460   0.485195   0.333934  fugitive#Find()
+  272   0.259547             <SNR>64_Highlight_Matching_Pair()
+ 1460   0.077485   0.008123  <SNR>77_Tree()
+ 1460   0.069361   0.011708  FugitiveWorkTree()
+ 2920   0.047661   0.039119  FugitiveGitDir()
+ 1460   0.037815             fugitive#CommonDir()
+ 4380   0.025995             <SNR>77_Slash()
+    4   0.019280   0.001599  signature#sign#Refresh()
+ 1460   0.017442             <SNR>35_Tree()
+ 1460   0.015240   0.007790  <SNR>77_Dir()
+  365   0.013794             lightline#link()
+ 1460   0.009966             FugitiveVimPath()
+    8   0.009257             signature#mark#GetList()
+  730   0.008835             go#statusline#Show()
+ 1460   0.008542             <SNR>35_Slash()
+  208   0.007364   0.006500  signature#sign#Remove()
+  272   0.003410             lightline#update_once()
+    4   0.003103   0.000544  gitgutter#process_buffer()
+
+FUNCTIONS SORTED ON SELF TIME
+count  total (s)   self (s)  function
+ 1460   0.485195   0.333934  fugitive#Find()
+  272              0.259547  <SNR>64_Highlight_Matching_Pair()
+  730   0.573373   0.081534  fugitive#Head()
+ 2920   0.047661   0.039119  FugitiveGitDir()
+ 1460              0.037815  fugitive#CommonDir()
+ 4380              0.025995  <SNR>77_Slash()
+ 1460              0.017442  <SNR>35_Tree()
+  365              0.013794  lightline#link()
+ 1460   0.069361   0.011708  FugitiveWorkTree()
+  730   0.592251   0.010281  fugitive#head()
+ 1460              0.009966  FugitiveVimPath()
+    8              0.009257  signature#mark#GetList()
+  730              0.008835  go#statusline#Show()
+ 1460              0.008542  <SNR>35_Slash()
+ 1460   0.077485   0.008123  <SNR>77_Tree()
+ 1460   0.015240   0.007790  <SNR>77_Dir()
+  208   0.007364   0.006500  signature#sign#Remove()
+  272              0.003410  lightline#update_once()
+  365              0.002230  lightline#mode()
+    4   0.019280   0.001599  signature#sign#Refresh()
+

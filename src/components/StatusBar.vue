@@ -1,46 +1,4 @@
 <template>
-    <div class="terminal-window">
-        <div class="text-window">
-            <pre>
- 1 type TableOfContents struct {
- 2     About about
- 3     Projects projects
- 4     Contact URL
- 5 }
- 6 
- 7 type about struct {
- 8     experience URL
- 9     constributions URL
-10 }
-11  
-12 type projects struct {
-13    GraphX URL
-14    OpenEdge URL
-15    CSEC URL
-16    CloudScale URL
-17 }
-~
-~
-~
-~
-~
-~
-~
-~
-~
-~
-~
-~
-~
-~
-~
-~
-~
-~
-~
-~
-            </pre>
-        </div>
         <div class="status-bar">
             <div class="left-status-bar">
                 <div class="mode-indicator">
@@ -82,29 +40,19 @@
                 </div>
             </div>
         </div>
-    </div>
 </template>
 
 <script>
 export default {
-    name: "TerminalWindow"
+    name: "StatusBar"
 }
 </script>
 
 <style scoped>
-.terminal-window {
-    height: 100%;
-}
-.text-window {
-    font-family: monaco,Consolas,Lucida Console,monospace;
-    height: calc(100% - 2vw);
-    background-color: #e4e4e4;
-    text-align: left;
-}
 .status-bar {
     font-size: 1.2vw;
     display: flex;
-    height: 2vw;
+    height: 100%;
     justify-content: space-between;
     background-color: #363a3e;
     font-family: monaco,Consolas,Lucida Console,monospace;
@@ -133,4 +81,3 @@ export default {
     padding: .8% .8% 0 .8%;
 }
 </style>
-
